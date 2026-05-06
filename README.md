@@ -86,8 +86,11 @@ curl -X POST "http://localhost:8000/analyze" \
 
 ## 📸 Screenshots
 
-*Coming soon*
+### Mostly Positive Results
+![Mostly Positive](screenshot1.png)
 
+### Mixed Results
+![Mixed Results](screenshot2.png)
 ---
 
 ## 🧠 Model Info
