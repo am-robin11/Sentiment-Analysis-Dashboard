@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sentiment Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f0f1a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding: 30px 20px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 6px;
+      color: #ffffff;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 30px;
+      font-size: 0.95rem;
+    }
+
+    .mode-toggle {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .mode-btn {
+      padding: 8px 24px;
+      border-radius: 20px;
+      border: 1px solid #333;
+      background: #1a1a2e;
+      color: #888;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .mode-btn.active {
+      background: #7c6af7;
+      color: white;
+      border-color: #7c6af7;
+    }
+
+    .input-section {
+      max-width: 700px;
+      margin: 0 auto 30px;
+    }
+
+    .mode-hint {
+      font-size: 0.8rem;
+      color: #555;
+      margin-bottom: 8px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 120px;
+      background: #1a1a2e;
+      border: 1px solid #333;
+      border-radius: 10px;
+      color: #e0e0e0;
+      padding: 14px;
+      font-size: 1rem;
+      resize: vertical;
+      outline: none;
+      transition: border 0.2s;
+    }
+
+    textarea:focus { border-color: #7c6af7; }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    button:hover { opacity: 0.85; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #analyzeBtn { background: #7c6af7; color: white; }
+    #clearBtn   { background: #2a2a3e; color: #aaa; }
+
+    .metrics {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 30px;
+    }
+
+    .card {
+      background: #1a1a2e;
+      border-radius: 12px;
+      padding: 20px 30px;
+      text-align: center;
+      min-width: 150px;
+      border: 1px solid #2a2a3e;
+    }
+
+    .card .number {
+      font-size: 2.5rem;
+      font-weight: bold;
+    }
+
+    .card .label { color: #888; font-size: 0.85rem; margin-top: 4px; }
+    .positive { color: #4ade80; }
+    .negative { color: #f87171; }
+    .neutral  { color: #a78bfa; }
+
+    .chart-section {
+      max-width: 400px;
+      margin: 0 auto 30px;
+    }
+
+    .history-section {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .history-section h2 {
+      font-size: 1.1rem;
+      margin-bottom: 12px;
+      color: #aaa;
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .history-item {
+      background: #1a1a2e;
+      border-radius: 10px;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid #2a2a3e;
+    }
+
+    .history-text {
+      flex: 1;
+      font-size: 0.9rem;
+      color: #ccc;
+      margin-right: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    .badge.POSITIVE { background: #14532d; color: #4ade80; }
+    .badge.NEGATIVE { background: #450a0a; color: #f87171; }
+
+    .confidence {
+      font-size: 0.8rem;
+      color: #888;
+      margin-left: 10px;
+      white-space: nowrap;
+    }
+
+    #loading {
+      text-align: center;
+      color: #7c6af7;
+      font-size: 0.9rem;
+      margin-top: 8px;
+      display: none;
+    }
+
+    .batch-divider {
+      text-align: center;
+      color: #444;
+      font-size: 0.8rem;
+      margin: 6px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🧠 Sentiment Dashboard</h1>
+  <p class="subtitle">Powered by DistilBERT · Real-time & Batch Sentiment Analysis</p>
+
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="singleBtn" onclick="setMode('single')">Single</button>
+    <button class="mode-btn" id="batchBtn" onclick="setMode('batch')">Batch</button>
+  </div>
+
+  <div class="input-section">
+    <div class="mode-hint" id="modeHint">Press Enter or click Analyze to submit.</div>
+    <textarea id="textInput" maxlength="5000"
+      placeholder="Type or paste text here..."></textarea>
+    <div class="btn-row">
+      <button id="analyzeBtn" onclick="analyze()">Analyze</button>
+      <button id="clearBtn" onclick="clearAll()">Clear History</button>
+    </div>
+    <div id="loading">Analyzing...</div>
+  </div>
+
+  <div class="metrics">
+    <div class="card">
+      <div class="number positive" id="posCount">0</div>
+      <div class="label">POSITIVE</div>
+    </div>
+    <div class="card">
+      <div class="number negative" id="negCount">0</div>
+      <div class="label">NEGATIVE</div>
+    </div>
+    <div class="card">
+      <div class="number neutral" id="avgConf">—</div>
+      <div class="label">AVG CONFIDENCE</div>
+    </div>
+  </div>
+
+  <div class="chart-section">
+    <canvas id="sentimentChart"></canvas>
+  </div>
+
+  <div class="history-section">
+    <h2>Analysis History</h2>
+    <div class="history-list" id="historyList">
+      <p style="color:#555; font-size:0.9rem;">No analyses yet. Type something above!</p>
+    </div>
+  </div>
+
+  <script>
+    let history = [];
+    let currentMode = 'single';
+
+    const ctx = document.getElementById('sentimentChart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Positive', 'Negative'],
+        datasets: [{
+          data: [0, 0],
+          backgroundColor: ['#4ade80', '#f87171'],
+          borderColor: '#0f0f1a',
+          borderWidth: 3
+        }]
+      },
+      options: {
+        plugins: {
+          legend: { labels: { color: '#ccc' } }
+        }
+      }
+    });
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById('singleBtn').classList.toggle('active', mode === 'single');
+      document.getElementById('batchBtn').classList.toggle('active', mode === 'batch');
+
+      const hint = document.getElementById('modeHint');
+      const textarea = document.getElementById('textInput');
+
+      if (mode === 'single') {
+        hint.textContent = 'Press Enter or click Analyze to submit.';
+        textarea.placeholder = 'Type or paste text here... (max 500 chars)';
+        textarea.maxLength = 500;
+      } else {
+        hint.textContent = 'Batch mode: put each text on a new line. All lines will be analyzed at once.';
+        textarea.placeholder = 'Paste multiple texts here, one per line...\n\nExample:\nThis product is amazing!\nTerrible experience, would not recommend.\nIt was okay, nothing special.';
+        textarea.maxLength = 5000;
+      }
+    }
+
+    async function analyze() {
+      const text = document.getElementById('textInput').value.trim();
+      if (!text) return;
+
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('analyzeBtn').disabled = true;
+
+      try {
+        if (currentMode === 'single') {
+          const res = await fetch('/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+          });
+          const data = await res.json();
+          history.unshift(data);
+
+        } else {
+          const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+          const res = await fetch('/analyze/batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ texts: lines })
+          });
+          const results = await res.json();
+          // Add a visual separator marker then all results
+          history.unshift({ _batchSeparator: true, count: results.length });
+          results.forEach(r => history.unshift(r));
+          // Re-order so separator is at top
+          const sep = history.splice(results.length, 1)[0];
+          history.unshift(sep);
+        }
+
+        updateUI();
+        document.getElementById('textInput').value = '';
+      } catch (err) {
+        alert('Error connecting to server.');
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('analyzeBtn').disabled = false;
+      }
+    }
+
+    function updateUI() {
+      const realItems = history.filter(h => !h._batchSeparator);
+      const pos = realItems.filter(h => h.label === 'POSITIVE').length;
+      const neg = realItems.filter(h => h.label === 'NEGATIVE').length;
+      const avgConf = realItems.length
+        ? (realItems.reduce((s, h) => s + h.score, 0) / realItems.length * 100).toFixed(1) + '%'
+        : '—';
+
+      document.getElementById('posCount').textContent = pos;
+      document.getElementById('negCount').textContent = neg;
+      document.getElementById('avgConf').textContent = avgConf;
+
+      chart.data.datasets[0].data = [pos, neg];
+      chart.update();
+
+      const list = document.getElementById('historyList');
+      if (realItems.length === 0) {
+        list.innerHTML = '<p style="color:#555; font-size:0.9rem;">No analyses yet. Type something above!</p>';
+        return;
+      }
+
+      list.innerHTML = history.map(h => {
+        if (h._batchSeparator) {
+          return `<div class="batch-divider">── Batch of ${h.count} ──</div>`;
+        }
+        return `
+          <div class="history-item">
+            <div class="history-text">${h.text}</div>
+            <span class="badge ${h.label}">${h.label}</span>
+            <span class="confidence">${(h.score * 100).toFixed(1)}%</span>
+          </div>`;
+      }).join('');
+    }
+
+    function clearAll() {
+      history = [];
+      updateUI();
+    }
+
+    document.getElementById('textInput').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey && currentMode === 'single') {
+        e.preventDefault();
+        analyze();
+      }
+    });
+  </script>
+
+</body>
+</html>
