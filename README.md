@@ -87,10 +87,11 @@ curl -X POST "http://localhost:8000/analyze" \
 ## 📸 Screenshots
 
 ### Mostly Positive Results
-![Mostly Positive](screenshot1.png)
+![Mostly Positive](assets/screenshot1.png)
 
 ### Mixed Results
-![Mixed Results](screenshot2.png)
+![Mixed Results](assets/screenshot2.png)
+
 ---
 
 ## 🧠 Model Info
